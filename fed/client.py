@@ -90,24 +90,23 @@ class Client():
         if parameters is not None:
             self.global_params = copy.deepcopy(parameters)
             self.model.copy_params(self.global_params)
+            print("-> forward", self.model(self.x).shape)
         return self.model(self.x)
 
     def batch_evaluation(self, logists, step=0, result={}):
         if self.conf.num_classes <= 2:
             return self.binary_batch_evaluation(logists, step, result)
-        label = copy.deepcopy(self.y)
-        label = label.argmax(dim=1, keepdim=True).view(-1)
-        output = F.softmax(logists, dim=1)
+        label = self.y
+        # 由于原论文是regression模型，cross_entropy是one-hot模式，因此这里顺从原论文使用MSE作为loss
+        pred = logists.view([-1]).detach()
+        loss = F.mse_loss(pred, self.y.float(), reduction="mean").item()
+        print("pred=", pred[:10].data, "loss=", loss)
+        #loss = F.cross_entropy(output, label, reduction="mean")
+        #pred = output.argmax(dim=1, keepdim=True)
+        #acc = 100.0 * pred.eq(label.view_as(pred)).sum() / len(output)
 
-        loss = F.cross_entropy(output, label, reduction="mean")
-        pred = output.argmax(dim=1, keepdim=True)
-        acc = 100.0 * pred.eq(label.view_as(pred)).sum() / len(output)
-
-        result["acc"].append(float(acc))
-        result["loss"].append(float(loss))
-        result["step"].append(step)
-        print(f"-> logist.shape={logists.shape} label.shape={label.shape}\n-> logist={logists[:5].data}\n-> pred={pred.view(-1)[:15]}\n-> y={label.view(-1)[:15]}")
-        print(f"-> step={step} train_loss={loss} train_acc={acc}%\n")
+        print(f"-> logist.shape={logists.shape} label.shape={self.y.shape}\n-> logist={logists[:5].data}\n-> pred={pred.view(-1)[:15]}\n-> y={label.view(-1)[:15]}")
+        print(f"-> step={step} train_loss={loss}\n")
 
     def binary_batch_evaluation(self, logists, step=0, result={}):
         label = copy.deepcopy(self.y)

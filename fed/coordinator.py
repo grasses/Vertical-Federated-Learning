@@ -33,7 +33,7 @@ class Coordinator(object):
 
         # setup model
         for uid, party in enumerate(self.party):
-            self.model[uid] = Model(party.num_features, party.num_output, weight=weight[uid]).to(self.conf.device)
+            self.model[uid] = Model(party.num_features, party.num_output, weight=weight[uid], lr=party.lr, debug=self.conf.debug).to(self.conf.device)
             self.optimizer[uid] = torch.optim.SGD(self.model[uid].parameters(), lr=self.conf.learning_rate, momentum=self.conf.momentum)
 
     def get_parameters(self):
@@ -45,7 +45,7 @@ class Coordinator(object):
             parameters[uid] = self.model[uid].state_dict()
         return parameters
 
-    def run(self, preview=10):
+    def run(self, preview=1):
         result_dict = {"loss": [], "acc": [], "step": []}
         total_step = self.conf.num_round * self.conf.num_steps
 
@@ -61,14 +61,13 @@ class Coordinator(object):
             w, z = self.fed_clients[1].grad_step2(u_prime)
             grad = self.fed_clients[0].grad_step3(w, z)
 
-
             # update model
-            for uid, party in self.party.items():
-                self.model[uid].set_grad([grad[uid]])
+            for uid in range(len(self.party)):
+                self.model[uid].set_grad(grad[uid].mean(dim=1).view(-1, 1))
                 self.optimizer[uid].step()
 
             # stop round for all parties
-            for uid, party in self.party.items():
+            for uid in range(len(self.party)):
                 self.fed_clients[uid].stop_round()
 
             # calculate loss
@@ -83,10 +82,11 @@ class Coordinator(object):
             if step % preview == 0:
                 # print(f"-> grad0={grad[0]}\n-> grad1={grad[1]}\n")
                 logists = []
-                for uid, party in self.party.items():
+                for uid in range(len(self.party)):
                     logists.append(self.fed_clients[uid].forward().float())
                 logists = logists[0] + logists[1]  # torch.sigmoid(logists[0] + logists[1])
                 self.fed_clients[0].batch_evaluation(logists, step, result=result_dict)
+            
 
             if step > 0 and step % preview == 0:
                 with open(os.path.join(self.conf.output_path, "summary.json"), "w") as outfile:

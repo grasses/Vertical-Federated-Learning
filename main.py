@@ -15,11 +15,8 @@ def main():
     conf = hepler.conf()
 
     # load splitted dataset
-    if conf.dataset == "mnist":
-        from data.mnist import Data
-    elif conf.dataset == "digist":
-        from data.digist import Data
-
+    from data.mnist import Data
+    
     # build dataset & dataloader
     train_transform = transforms.Compose([
         transforms.ToTensor(),

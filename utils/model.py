@@ -12,9 +12,10 @@ from torch.autograd import Variable
 
 
 class Model(nn.Module):
-    def __init__(self, num_features, num_output, weight=None, debug=False):
+    def __init__(self, num_features, num_output, weight=None, lr=0.01, debug=False):
         super(Model, self).__init__()
         self.debug = debug
+        self.lr = lr
         self.num_features = num_features
         self.w = self.xavier_init([num_features, num_output])
         if weight is not None:
@@ -31,6 +32,9 @@ class Model(nn.Module):
         for (name, param) in state_dict.items():
             if name in own_state:
                 own_state[name].copy_(param.clone())
+
+    def set_grad(self, grad):
+        self.w.data -= self.lr * grad
 
     def grad_step1(self, x, y):
         """
@@ -57,11 +61,12 @@ class Model(nn.Module):
         u_prime = [batch_size, out_size]
         z = [10, out_size]
         """
+        x = x.view(-1, self.num_features)
         v = 0.25 * (x @ self.w)
         w = u_prime + v
         z = w.t() @ x
         if self.debug:
-            print(f"-> v={v}")
+            #print(f"-> v={v}")
             print(f"-> w={w}")
             print(f"-> z={z}\n\n")
         return w, z
@@ -73,6 +78,7 @@ class Model(nn.Module):
         w = [batch_size, out_size]
         z_prime = [13, out_size]
         """
+        x = x.view(-1, self.num_features)
         z_prime = w.t() @ x
         if self.debug:
             print(f"-> z_prime={z_prime}\n\n")
@@ -122,6 +128,7 @@ class Model(nn.Module):
         """
         feed forward
         """
+        x = x.view(-1, self.num_features)
         x = x @ self.w
         return x
 

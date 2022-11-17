@@ -17,37 +17,39 @@ class Data(object):
         self.nThreads = nThreads
         self.transform = transform
         self.batch_size = batch_size
-        self.dataset = torchvision.datasets.MNIST("data/mnist", train=train,
+        # split data into two parts
+        self.shuffle = shuffle
+        self.split_vertical_data(split)
+
+    def load_dataset(self, train=True):        
+        dataset = torchvision.datasets.MNIST("data/mnist", train=train,
                                                   transform=self.transform,
                                                   target_transform=None,
                                                   download=True)
 
         # shuffle dataset manually
-        if shuffle:
-            size = len(self.dataset.data)
+        if self.shuffle:
+            size = len(dataset.data)
             idx = np.random.choice(size, size, replace=False)
-            self.dataset.data = self.dataset.data[idx]
-            self.dataset.targets = self.dataset.targets[idx]
+            dataset.data = dataset.data[idx]
+            dataset.targets = dataset.targets[idx]
+        return dataset
 
-        # split data into two parts
-        self.split_vertical_data(split)
 
-    def split_vertical(self, dataset, split=10):
+    def split_vertical(self, split):
         # copy dataset
-        A_dataset = copy.deepcopy(dataset)
-        B_dataset = copy.deepcopy(dataset)
+        A_dataset = self.load_dataset()
+        B_dataset = self.load_dataset()
 
         # split dataset
         A_dataset.data = A_dataset.data.reshape([-1, 784])[:, :split]
         B_dataset.data = B_dataset.data.reshape([-1, 784])[:, split:]
         B_dataset.target = (B_dataset.targets * 0).long()
-
-        print(A_dataset.data.shape, B_dataset.data.shape)
         return A_dataset, B_dataset
 
     def split_vertical_data(self, split):
         # split dataset into two A_dataset and B_dataset
-        datasets = self.split_vertical(self.dataset, split=split)
+        datasets = self.split_vertical(split=split)
 
         # TODO: PSI operation
         # build data loader
